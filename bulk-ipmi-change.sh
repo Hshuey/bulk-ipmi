@@ -33,7 +33,7 @@ retry() {
 }
 
 change_ipmi_ip() {
-    IFS=',' read -r ip user pass new_ip <<< "$1"
+    IFS=',' read -r ip user pass new_ip subnet gateway <<< "$1"
     log "[*] Connecting to $ip as $user to change IP to $new_ip..."
 
     if ! retry "ipmitool -I lanplus -H \"$ip\" -U \"$user\" -P \"$pass\" lan print > /dev/null 2>&1" "IPMI access to $ip"; then
@@ -46,6 +46,8 @@ change_ipmi_ip() {
 
     retry "ipmitool -I lanplus -H \"$ip\" -U \"$user\" -P \"$pass\" lan set 1 ipsrc static" "set static IP mode on $ip"
     retry "ipmitool -I lanplus -H \"$ip\" -U \"$user\" -P \"$pass\" lan set 1 ipaddr \"$new_ip\"" "set new IP on $ip"
+    retry "ipmitool -I lanplus -H \"$ip\" -U \"$user\" -P \"$pass\" lan set 1 netmask \"$subnet\"" "set subnet on $ip"
+    retry "ipmitool -I lanplus -H \"$ip\" -U \"$user\" -P \"$pass\" lan set 1 defgw ipaddr \"$gateway\"" "set gateway on $ip"
 
     log "[*] Verifying IP address update on $ip..."
     updated_ip=$(ipmitool -I lanplus -H "$ip" -U "$user" -P "$pass" lan print 2>/dev/null | grep -i "IP Address" | head -n 1 | awk -F: '{print $2}' | xargs)
@@ -108,7 +110,7 @@ check_ipmi=${check_ipmi,,}
 
 if [[ "$check_ipmi" == "y" ]]; then
     log "[*] Verifying IPMI login on new IPs..."
-    while IFS=',' read -r old_ip user pass new_ip; do
+    while IFS=',' read -r old_ip user pass new_ip subnet gateway; do
         [[ "$old_ip" =~ ^#.*$ || -z "$old_ip" ]] && continue
         log "[*] Checking IPMI at $new_ip..."
         if ipmitool -I lanplus -H "$new_ip" -U "$user" -P "$pass" lan print > /dev/null 2>&1; then
