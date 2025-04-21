@@ -1,4 +1,4 @@
-ip,user,password,new_ip
-192.168.1.10,admin,P@ssword!,192.168.100.10
-192.168.1.11,root,changeme,192.168.100.11
-# This is a comment line and will be ignored
+#ip,user,password,new_ip,subnet,gateway
+192.168.1.10,admin,P@ssword!,192.168.100.10,255.255.255.0,192.168.100.1
+192.168.1.11,root,changeme,192.168.100.11,255.255.255.0,192.168.100.1
+192.168.1.12,admin,MySecurePass123!,192.168.100.12,255.255.254.0,192.168.100.1
