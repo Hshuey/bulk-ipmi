@@ -1,107 +1,120 @@
-
-
----
-
-```Discription
+```markdown
 # Bulk IPMI IP Address Changer
 
-This script performs **bulk IPMI IP address changes** across a list of servers (Supermicro, Dell iDRAC, etc.) using `ipmitool`. It supports both sequential and parallel execution, includes built-in retry logic, verifies IP changes before rebooting the BMC, and generates timestamped logs for traceability.
+A powerful Bash script for performing **bulk IPMI IP address, subnet, and gateway changes** across Supermicro, Dell iDRAC, or any BMC supporting IPMI over LAN. This tool handles configuration, rebooting, logging, and validation — all in one shot.
 
 ---
 
-## 📄 Features
+## 📦 Features
 
-- ✅ Supermicro + Dell iDRAC compatibility
-- ✅ Supports static IP configuration
-- ✅ Confirms IP change via IPMI before rebooting
-- ✅ Reboots BMC to apply changes
+- ✅ Supermicro + Dell compatibility
+- ✅ Bulk updates: IP address, subnet mask, and default gateway
+- ✅ Verifies changes before rebooting BMC
+- ✅ Reboots BMC via `mc reset cold`
 - ✅ Optional **parallel execution**
-- ✅ **Retry logic** for network/IPMI errors (3 attempts)
-- ✅ Final verification via:
-  - `ping` sweep (optional)
-  - IPMI login test (optional)
-- ✅ Logs all output to timestamped log files under `./logs`
+- ✅ Built-in **retry logic** (3 attempts per command)
+- ✅ `--file` flag to specify custom CSV input
+- ✅ `--dry-run` mode to simulate without applying changes
+- ✅ Timestamped logs in `./logs/`
+- ✅ Success/Fail summary at the end of each run
 
 ---
 
-## 🧾 CSV Format (`servers.csv`)
+## 📄 Input Format: `servers.csv`
 
 ```csv
-ip,user,password,new_ip
-192.168.1.10,admin,P@ssword!,192.168.100.10
-192.168.1.11,root,changeme,192.168.100.11
-# Lines starting with '#' are ignored
+ip,user,password,new_ip,subnet,gateway
+192.168.1.10,admin,P@ssword!,192.168.100.10,255.255.255.0,192.168.100.1
+192.168.1.11,root,changeme,192.168.100.11,255.255.255.0,192.168.100.1
+# Lines starting with # are ignored
 ```
 
-Each line defines:
+Each column:
 
-- `ip`: Current IPMI IP address
-- `user`: IPMI login username
-- `password`: IPMI password (supports special characters)
-- `new_ip`: Desired new IPMI IP address
+| Field       | Description                          |
+|-------------|--------------------------------------|
+| `ip`        | Current IPMI IP address              |
+| `user`      | IPMI login username                  |
+| `password`  | IPMI password                        |
+| `new_ip`    | Desired new IPMI address             |
+| `subnet`    | Subnet mask to apply                 |
+| `gateway`   | Default gateway IP for BMC interface |
 
 ---
 
 ## 🚀 Usage
 
-1. Install dependencies:
+### Basic run:
 
-    ```bash
-    sudo apt install ipmitool parallel
-    ```
-
-2. Make the script executable:
-
-    ```bash
-    chmod +x bulk-ipmi-change.sh
-    ```
-
-3. Run the script:
-
-    ```bash
-    ./bulk-ipmi-change.sh
-    ```
-
-You will be prompted to:
-
-- Choose **parallel or sequential** execution
-- Set **number of parallel jobs** (default: 5)
-- Optionally run a **ping sweep** to verify new IPs
-- Optionally perform **IPMI login checks** on new IPs
-
----
-
-## 📁 Logs
-
-All output is logged to a timestamped file:
-
-```
-logs/ipmi-run-YYYYMMDD_HHMMSS.log
+```bash
+./bulk-ipmi-change.sh
 ```
 
-If the `logs/` directory doesn't exist, it will be created automatically.
+### With custom input file:
+
+```bash
+./bulk-ipmi-change.sh --file custom_input.csv
+```
+
+### Dry run (simulate actions without changing anything):
+
+```bash
+./bulk-ipmi-change.sh --dry-run
+```
+
+You’ll be prompted during execution to:
+
+- Enable or skip parallel job execution
+- Ping all new IPs to confirm online status
+- Re-check IPMI login over the new IPs
 
 ---
 
-## 📌 Notes
+## 📁 Logging
 
-- Passwords are not masked in logs (for transparency during auditing). Use caution if sharing logs.
-- This script sets the IP source to `static`. It does not modify subnet/gateway.
-- Requires network access to each BMC via IPMI (`lanplus` interface).
+- Logs are saved to `logs/ipmi-run-YYYYMMDD_HHMMSS.log`
+- Summary includes `Success`, `Fail`, or `Dry-Run` per device
+
+Example:
+```
+==== Summary ====
+192.168.1.10,Success
+192.168.1.11,Fail
+```
+
+---
+
+## ⚠️ Requirements
+
+Make sure the following tools are installed:
+
+```bash
+sudo apt install ipmitool parallel
+```
+
+Make the script executable:
+
+```bash
+chmod +x bulk-ipmi-change.sh
+```
 
 ---
 
-## 🔐 Security Disclaimer
+## 🔐 Security Note
 
-This tool directly interacts with IPMI interfaces and reboots BMCs. Only use it in **trusted environments** with **authorized credentials**. Do not run this from untrusted networks or expose the input file externally.
+- Credentials and configuration are processed locally.
+- Passwords are shown in logs for auditing — handle log files with care.
+- Ensure access is restricted to trusted operators.
+
+---
+
+## 🛠️ TODO / Planned Improvements
+
+- Password masking in output logs
+- Optional DNS updates
+- JSON/CSV export of final results
+- Web UI or TUI view for task monitoring
+- Email/Slack alerts on job completion
 
 ---
 
-## 🛠️ TODO / Possible Enhancements
-
-- CSV output summary of success/fail per device
-- Password masking in logs
-- Integration with DNS updates
-- Web dashboard or TUI mode
-
----
