@@ -44,10 +44,12 @@ change_ipmi_ip() {
     vendor=${vendor:-"Unknown"}
     log "[*] Detected Vendor: $vendor"
 
-    retry "ipmitool -I lanplus -H \"$ip\" -U \"$user\" -P \"$pass\" lan set 1 ipsrc static" "set static IP mode on $ip"
-    retry "ipmitool -I lanplus -H \"$ip\" -U \"$user\" -P \"$pass\" lan set 1 ipaddr \"$new_ip\"" "set new IP on $ip"
-    retry "ipmitool -I lanplus -H \"$ip\" -U \"$user\" -P \"$pass\" lan set 1 netmask \"$subnet\"" "set subnet on $ip"
-    retry "ipmitool -I lanplus -H \"$ip\" -U \"$user\" -P \"$pass\" lan set 1 defgw ipaddr \"$gateway\"" "set gateway on $ip"
+   retry "ipmitool -I lanplus -H \"$ip\" -U \"$user\" -P \"$pass\" lan set 1 ipsrc static" "set static IP mode on $ip"
+   retry "ipmitool -I lanplus -H \"$ip\" -U \"$user\" -P \"$pass\" lan set 1 netmask \"$subnet\"" "set subnet on $ip"
+   retry "ipmitool -I lanplus -H \"$ip\" -U \"$user\" -P \"$pass\" lan set 1 defgw ipaddr \"$gateway\"" "set gateway on $ip"
+   retry "ipmitool -I lanplus -H \"$ip\" -U \"$user\" -P \"$pass\" lan set 1 ipaddr \"$new_ip\"" "set new IP on $ip"
+
+
 
     log "[*] Verifying IP address update on $ip..."
     updated_ip=$(ipmitool -I lanplus -H "$ip" -U "$user" -P "$pass" lan print 2>/dev/null | grep -i "IP Address" | head -n 1 | awk -F: '{print $2}' | xargs)
