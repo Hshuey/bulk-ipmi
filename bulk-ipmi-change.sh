@@ -44,18 +44,46 @@ change_ipmi_ip() {
     vendor=${vendor:-"Unknown"}
     log "[*] Detected Vendor: $vendor"
 
-   retry "ipmitool -I lanplus -H \"$ip\" -U \"$user\" -P \"$pass\" lan set 1 ipsrc static" "set static IP mode on $ip"
-   retry "ipmitool -I lanplus -H \"$ip\" -U \"$user\" -P \"$pass\" lan set 1 netmask \"$subnet\"" "set subnet on $ip"
-   retry "ipmitool -I lanplus -H \"$ip\" -U \"$user\" -P \"$pass\" lan set 1 defgw ipaddr \"$gateway\"" "set gateway on $ip"
-   retry "ipmitool -I lanplus -H \"$ip\" -U \"$user\" -P \"$pass\" lan set 1 ipaddr \"$new_ip\"" "set new IP on $ip"
+    if [[ "$vendor" =~ Dell ]]; then
+        log "[*] Dell system detected — using Redfish API"
+        redfish_url="https://$ip/redfish/v1/Managers/iDRAC.Embedded.1/EthernetInterfaces/iDRAC.Embedded.1%23NIC.1"
+        redfish_payload=$(cat <<EOF
+{
+  "IPv4Addresses": [
+    {
+      "Address": "$new_ip",
+      "SubnetMask": "$subnet",
+      "Gateway": "$gateway"
+    }
+  ]
+}
+EOF
+)
+        response=$(curl -k -s -w "\\n%{http_code}" -u "$user:$pass" -X PATCH "$redfish_url" \
+            -H "Content-Type: application/json" \
+            -d "$redfish_payload")
 
+        http_code=$(echo "$response" | tail -n1)
+        if [[ "$http_code" == "200" || "$http_code" == "204" ]]; then
+            echo "$new_ip" >> "$TMP_NEW_IPS"
+            log "[✓] Successfully updated $ip via Redfish to $new_ip"
+        else
+            log "[✗] Failed Redfish update on $ip. HTTP code: $http_code"
+        fi
+        return
+    fi
 
+    # Supermicro/others fallback to ipmitool
+    retry "ipmitool -I lanplus -H \"$ip\" -U \"$user\" -P \"$pass\" lan set 1 ipsrc static" "set static IP mode on $ip"
+    retry "ipmitool -I lanplus -H \"$ip\" -U \"$user\" -P \"$pass\" lan set 1 netmask \"$subnet\"" "set subnet on $ip"
+    retry "ipmitool -I lanplus -H \"$ip\" -U \"$user\" -P \"$pass\" lan set 1 defgw ipaddr \"$gateway\"" "set gateway on $ip"
+    retry "ipmitool -I lanplus -H \"$ip\" -U \"$user\" -P \"$pass\" lan set 1 ipaddr \"$new_ip\"" "set new IP on $ip"
 
     log "[*] Verifying IP address update on $ip..."
     updated_ip=$(ipmitool -I lanplus -H "$ip" -U "$user" -P "$pass" lan print 2>/dev/null | grep -i "IP Address" | head -n 1 | awk -F: '{print $2}' | xargs)
 
     if [[ "$updated_ip" == "$new_ip" ]]; then
-        log "[+] IP confirmed as $new_ip"
+        log "[✓] IP confirmed as $new_ip"
     else
         log "[✗] Failed to confirm new IP for $ip. Found: '$updated_ip'"
         return
